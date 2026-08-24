@@ -1,0 +1,24 @@
+name: Connector test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write marker
+        run: echo "GitHub Actions write test" > CONNECTOR_TEST.txt
+      - name: Commit marker
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CONNECTOR_TEST.txt
+          git commit -m "Testa automação de publicação" || exit 0
+          git push
