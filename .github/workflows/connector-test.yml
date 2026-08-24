@@ -13,19 +13,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download test file from staging
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install browser automation
         run: |
-          curl --fail --location \
-            --cookie-jar /tmp/vercel-cookies.txt \
-            --cookie /tmp/vercel-cookies.txt \
-            "https://zelunexa-gvg06ewje-mikes-projects-c34ab6a2.vercel.app/test.txt?_vercel_share=C1jhUwDSULx7l4Fjx91hnAyaZms0wbAr" \
-            --output VERCEL_TEST_RESULT.txt
-          echo "Downloaded bytes: $(wc -c < VERCEL_TEST_RESULT.txt)"
-          cat VERCEL_TEST_RESULT.txt
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install chromium >/dev/null 2>&1
+
+      - name: Download protected staging file in a browser session
+        env:
+          SHARE_URL: https://zelunexa-gvg06ewje-mikes-projects-c34ab6a2.vercel.app/test.txt?_vercel_share=C1jhUwDSULx7l4Fjx91hnAyaZms0wbAr
+          FILE_URL: https://zelunexa-gvg06ewje-mikes-projects-c34ab6a2.vercel.app/test.txt
+        run: |
+          cat > /tmp/download.mjs <<'EOF'
+          import fs from 'node:fs';
+          import { chromium } from 'playwright';
+
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext();
+          const page = await context.newPage();
+          await page.goto(process.env.SHARE_URL, { waitUntil: 'networkidle', timeout: 120000 });
+          await page.waitForTimeout(3000);
+          const response = await context.request.get(process.env.FILE_URL, { timeout: 120000 });
+          const body = await response.body();
+          fs.writeFileSync('VERCEL_BROWSER_RESULT.txt', body);
+          fs.writeFileSync('VERCEL_BROWSER_META.txt', [
+            `pageUrl=${page.url()}`,
+            `status=${response.status()}`,
+            `contentType=${response.headers()['content-type'] || ''}`,
+            `bytes=${body.length}`,
+            `preview=${body.toString('utf8', 0, Math.min(body.length, 300))}`
+          ].join('\n'));
+          await browser.close();
+          EOF
+          node /tmp/download.mjs
+          cat VERCEL_BROWSER_META.txt
+
       - name: Commit test result
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add VERCEL_TEST_RESULT.txt
-          git commit -m "Valida transferência automatizada de arquivos" || exit 0
+          git add VERCEL_BROWSER_RESULT.txt VERCEL_BROWSER_META.txt
+          git commit -m "Valida download protegido para publicação" || exit 0
           git push
