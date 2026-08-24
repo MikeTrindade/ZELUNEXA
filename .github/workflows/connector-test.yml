@@ -29,7 +29,7 @@ jobs:
           SHARE_URL: https://zelunexa-gvg06ewje-mikes-projects-c34ab6a2.vercel.app/test.txt?_vercel_share=C1jhUwDSULx7l4Fjx91hnAyaZms0wbAr
           FILE_URL: https://zelunexa-gvg06ewje-mikes-projects-c34ab6a2.vercel.app/test.txt
         run: |
-          cat > /tmp/download.mjs <<'EOF'
+          cat > download.mjs <<'EOF'
           import fs from 'node:fs';
           import { chromium } from 'playwright';
 
@@ -50,7 +50,7 @@ jobs:
           ].join('\n'));
           await browser.close();
           EOF
-          node /tmp/download.mjs
+          node download.mjs
           cat VERCEL_BROWSER_META.txt
 
       - name: Commit test result
