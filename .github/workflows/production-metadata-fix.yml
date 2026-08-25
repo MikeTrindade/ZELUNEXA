@@ -24,7 +24,8 @@ jobs:
           from pathlib import Path
           import re
 
-          BASE = 'https://zelunexa.vercel.app'
+          BASE = 'https://zelunexa.com.br'
+          LEGACY_BASE = 'https://zelunexa.vercel.app'
           OG = f'{BASE}/assets/img/og-image.png'
           LOGO = f'{BASE}/assets/img/zelunexa-logo.svg'
 
@@ -46,11 +47,17 @@ jobs:
                   continue
               s = p.read_text(encoding='utf-8')
 
+              # Troca qualquer referência canônica da URL provisória da Vercel pelo domínio oficial.
+              s = s.replace(LEGACY_BASE, BASE)
+
               s = re.sub(r'<meta property="og:image" content="[^"]+">',
                          f'<meta property="og:image" content="{OG}">', s, count=1)
               if 'property="og:image:secure_url"' not in s:
                   s = s.replace(f'<meta property="og:image" content="{OG}">',
                       f'<meta property="og:image" content="{OG}">\n    <meta property="og:image:secure_url" content="{OG}">\n    <meta property="og:image:type" content="image/png">', 1)
+              else:
+                  s = re.sub(r'<meta property="og:image:secure_url" content="[^"]+">',
+                             f'<meta property="og:image:secure_url" content="{OG}">', s, count=1)
 
               s = re.sub(r'<meta name="twitter:image" content="[^"]+">',
                          f'<meta name="twitter:image" content="{OG}">', s, count=1)
@@ -60,15 +67,36 @@ jobs:
 
               if path in pages:
                   url = pages[path]
-                  if 'property="og:url"' not in s:
+                  if 'property="og:url"' in s:
+                      s = re.sub(r'<meta property="og:url" content="[^"]+">',
+                                 f'<meta property="og:url" content="{url}">', s, count=1)
+                  else:
                       s = s.replace('<meta property="og:site_name" content="Zelunexa">',
                                     f'<meta property="og:site_name" content="Zelunexa">\n    <meta property="og:url" content="{url}">', 1)
-                  if 'rel="canonical"' not in s:
+
+                  if 'rel="canonical"' in s:
+                      s = re.sub(r'<link rel="canonical" href="[^"]+">',
+                                 f'<link rel="canonical" href="{url}">', s, count=1)
+                  else:
                       m = re.search(r'(<title>.*?</title>)', s, re.S)
                       if m:
                           s = s[:m.end()] + f'\n    <link rel="canonical" href="{url}">' + s[m.end():]
 
               s = s.replace('"logo":"assets/img/og-image.png"', f'"logo":"{LOGO}"')
+              s = s.replace(f'"logo":"{LEGACY_BASE}/assets/img/zelunexa-logo.svg"', f'"logo":"{LOGO}"')
+
+              if path == 'index.html':
+                  if '"url":"https://zelunexa.com.br/"' not in s:
+                      s = s.replace('"name":"Zelunexa","slogan"',
+                                    '"name":"Zelunexa","url":"https://zelunexa.com.br/","slogan"', 1)
+              elif path == 'monitor.html':
+                  if '"url":"https://zelunexa.com.br/monitor.html"' not in s:
+                      s = s.replace('"name":"Zelunexa Monitor","applicationCategory"',
+                                    '"name":"Zelunexa Monitor","url":"https://zelunexa.com.br/monitor.html","applicationCategory"', 1)
+              elif path == 'guia.html':
+                  if '"url":"https://zelunexa.com.br/guia.html"' not in s:
+                      s = s.replace('"name":"Zelunexa Guia","applicationCategory"',
+                                    '"name":"Zelunexa Guia","url":"https://zelunexa.com.br/guia.html","applicationCategory"', 1)
 
               if path == 'area-do-cliente.html':
                   s = s.replace('<a class="portal-link" href="#">Área do Cliente ↗</a>',
@@ -81,32 +109,34 @@ jobs:
               p.write_text(s, encoding='utf-8')
 
           Path('robots.txt').write_text(
-              'User-agent: *\nAllow: /\n\nSitemap: https://zelunexa.vercel.app/sitemap.xml\n',
+              f'User-agent: *\nAllow: /\n\nSitemap: {BASE}/sitemap.xml\n',
               encoding='utf-8'
           )
 
           urls = [
-              ('https://zelunexa.vercel.app/', '1.0'),
-              ('https://zelunexa.vercel.app/monitor.html', '0.9'),
-              ('https://zelunexa.vercel.app/guia.html', '0.9'),
-              ('https://zelunexa.vercel.app/sobre.html', '0.7'),
-              ('https://zelunexa.vercel.app/contato.html', '0.8'),
-              ('https://zelunexa.vercel.app/area-do-cliente.html', '0.5'),
-              ('https://zelunexa.vercel.app/privacidade.html', '0.3'),
-              ('https://zelunexa.vercel.app/termos.html', '0.3'),
+              (f'{BASE}/', '1.0', 'monthly'),
+              (f'{BASE}/monitor.html', '0.9', 'monthly'),
+              (f'{BASE}/guia.html', '0.9', 'monthly'),
+              (f'{BASE}/sobre.html', '0.7', 'monthly'),
+              (f'{BASE}/contato.html', '0.8', 'monthly'),
+              (f'{BASE}/area-do-cliente.html', '0.5', 'monthly'),
+              (f'{BASE}/privacidade.html', '0.3', 'yearly'),
+              (f'{BASE}/termos.html', '0.3', 'yearly'),
           ]
           xml = ['<?xml version="1.0" encoding="UTF-8"?>',
                  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-          for url, priority in urls:
-              xml += ['  <url>', f'    <loc>{url}</loc>', '    <changefreq>monthly</changefreq>', f'    <priority>{priority}</priority>', '  </url>']
+          for url, priority, changefreq in urls:
+              xml += ['  <url>', f'    <loc>{url}</loc>', f'    <changefreq>{changefreq}</changefreq>', f'    <priority>{priority}</priority>', '  </url>']
           xml.append('</urlset>')
           Path('sitemap.xml').write_text('\n'.join(xml) + '\n', encoding='utf-8')
+          Path('sitemap.template.xml').write_text('\n'.join(xml) + '\n', encoding='utf-8')
+          Path('VERSION.txt').write_text('Zelunexa Site Oficial v11 — domínio oficial zelunexa.com.br e SEO canônico\n', encoding='utf-8')
           PY
 
       - name: Commit das correções
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html monitor.html guia.html sobre.html contato.html area-do-cliente.html privacidade.html termos.html 404.html robots.txt sitemap.xml
-          git commit -m "Corrige prévia social e SEO de produção" || exit 0
+          git add index.html monitor.html guia.html sobre.html contato.html area-do-cliente.html privacidade.html termos.html 404.html robots.txt sitemap.xml sitemap.template.xml VERSION.txt
+          git commit -m "Define zelunexa.com.br como domínio oficial" || exit 0
           git push
