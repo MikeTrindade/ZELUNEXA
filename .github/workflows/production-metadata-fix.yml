@@ -18,7 +18,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Ajustar Open Graph, canonical, robots e sitemap
+      - name: Ajustar dominio oficial e metadados
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -28,7 +28,6 @@ jobs:
           LEGACY_BASE = 'https://zelunexa.vercel.app'
           OG = f'{BASE}/assets/img/og-image.png'
           LOGO = f'{BASE}/assets/img/zelunexa-logo.svg'
-
           pages = {
               'index.html': f'{BASE}/',
               'monitor.html': f'{BASE}/monitor.html',
@@ -40,44 +39,19 @@ jobs:
               'termos.html': f'{BASE}/termos.html',
           }
 
-          all_html = list(pages) + ['404.html']
-          for path in all_html:
+          for path in list(pages) + ['404.html']:
               p = Path(path)
               if not p.exists():
                   continue
-              s = p.read_text(encoding='utf-8')
-              s = s.replace(LEGACY_BASE, BASE)
+              s = p.read_text(encoding='utf-8').replace(LEGACY_BASE, BASE)
               s = re.sub(r'<meta property="og:image" content="[^"]+">', f'<meta property="og:image" content="{OG}">', s, count=1)
-              if 'property="og:image:secure_url"' not in s:
-                  s = s.replace(f'<meta property="og:image" content="{OG}">', f'<meta property="og:image" content="{OG}">\n    <meta property="og:image:secure_url" content="{OG}">\n    <meta property="og:image:type" content="image/png">', 1)
-              else:
-                  s = re.sub(r'<meta property="og:image:secure_url" content="[^"]+">', f'<meta property="og:image:secure_url" content="{OG}">', s, count=1)
+              s = re.sub(r'<meta property="og:image:secure_url" content="[^"]+">', f'<meta property="og:image:secure_url" content="{OG}">', s, count=1)
               s = re.sub(r'<meta name="twitter:image" content="[^"]+">', f'<meta name="twitter:image" content="{OG}">', s, count=1)
-              if 'name="twitter:image:alt"' not in s:
-                  s = s.replace(f'<meta name="twitter:image" content="{OG}">', f'<meta name="twitter:image" content="{OG}">\n    <meta name="twitter:image:alt" content="Zelunexa — Conectar para zelar.">', 1)
-
               if path in pages:
                   url = pages[path]
-                  if 'property="og:url"' in s:
-                      s = re.sub(r'<meta property="og:url" content="[^"]+">', f'<meta property="og:url" content="{url}">', s, count=1)
-                  else:
-                      s = s.replace('<meta property="og:site_name" content="Zelunexa">', f'<meta property="og:site_name" content="Zelunexa">\n    <meta property="og:url" content="{url}">', 1)
-                  if 'rel="canonical"' in s:
-                      s = re.sub(r'<link rel="canonical" href="[^"]+">', f'<link rel="canonical" href="{url}">', s, count=1)
-                  else:
-                      m = re.search(r'(<title>.*?</title>)', s, re.S)
-                      if m:
-                          s = s[:m.end()] + f'\n    <link rel="canonical" href="{url}">' + s[m.end():]
-
-              s = s.replace('"logo":"assets/img/og-image.png"', f'"logo":"{LOGO}"')
+                  s = re.sub(r'<meta property="og:url" content="[^"]+">', f'<meta property="og:url" content="{url}">', s, count=1)
+                  s = re.sub(r'<link rel="canonical" href="[^"]+">', f'<link rel="canonical" href="{url}">', s, count=1)
               s = s.replace(f'"logo":"{LEGACY_BASE}/assets/img/zelunexa-logo.svg"', f'"logo":"{LOGO}"')
-              if path == 'index.html' and '"url":"https://zelunexa.com.br/"' not in s:
-                  s = s.replace('"name":"Zelunexa","slogan"', '"name":"Zelunexa","url":"https://zelunexa.com.br/","slogan"', 1)
-              elif path == 'monitor.html' and '"url":"https://zelunexa.com.br/monitor.html"' not in s:
-                  s = s.replace('"name":"Zelunexa Monitor","applicationCategory"', '"name":"Zelunexa Monitor","url":"https://zelunexa.com.br/monitor.html","applicationCategory"', 1)
-              elif path == 'guia.html' and '"url":"https://zelunexa.com.br/guia.html"' not in s:
-                  s = s.replace('"name":"Zelunexa Guia","applicationCategory"', '"name":"Zelunexa Guia","url":"https://zelunexa.com.br/guia.html","applicationCategory"', 1)
-
               p.write_text(s, encoding='utf-8')
 
           Path('robots.txt').write_text(f'User-agent: *\nAllow: /\n\nSitemap: {BASE}/sitemap.xml\n', encoding='utf-8')
@@ -95,11 +69,12 @@ jobs:
           for url, priority, changefreq in urls:
               xml += ['  <url>', f'    <loc>{url}</loc>', f'    <changefreq>{changefreq}</changefreq>', f'    <priority>{priority}</priority>', '  </url>']
           xml.append('</urlset>')
-          Path('sitemap.xml').write_text('\n'.join(xml) + '\n', encoding='utf-8')
-          Path('sitemap.template.xml').write_text('\n'.join(xml) + '\n', encoding='utf-8')
+          xml_text = '\n'.join(xml) + '\n'
+          Path('sitemap.xml').write_text(xml_text, encoding='utf-8')
+          Path('sitemap.template.xml').write_text(xml_text, encoding='utf-8')
           PY
 
-      - name: Corrigir proporção do vídeo principal no desktop
+      - name: Ampliar video principal da Home no desktop
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -107,64 +82,62 @@ jobs:
 
           p = Path('assets/css/styles.css')
           s = p.read_text(encoding='utf-8')
-          start = '/* === V12 HOME DESKTOP: vídeo principal ampliado === */'
+          start = '/* === V12 HOME DESKTOP: video principal ampliado === */'
           end = '/* === FIM V12 HOME DESKTOP === */'
-          pattern = re.compile(re.escape(start) + r'.*?' + re.escape(end), re.S)
-          s = pattern.sub('', s).rstrip() + '\n\n'
-          block = r'''/* === V12 HOME DESKTOP: vídeo principal ampliado === */
-@media (min-width: 1051px) {
-  .hero .hero-grid {
-    grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr);
-    gap: clamp(34px, 2.6vw, 48px);
-  }
-
-  .hero .hero-visual--motion {
-    width: calc(100% + clamp(190px, 13vw, 250px));
-    min-height: clamp(540px, 39vw, 610px);
-    margin-right: calc(clamp(190px, 13vw, 250px) * -1);
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-  }
-
-  .hero .hero-video-shell {
-    width: 100%;
-    height: 100%;
-    min-height: inherit;
-    aspect-ratio: auto;
-    overflow: hidden;
-    margin: 0;
-    -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,.72) 5%, #000 12%, #000 100%);
-    mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,.72) 5%, #000 12%, #000 100%);
-  }
-
-  .hero .hero-impact-video {
-    width: 100%;
-    height: 100%;
-    min-height: inherit;
-    object-fit: cover;
-    object-position: 78% 50%;
-    transform: scale(1.18);
-    transform-origin: 76% 50%;
-  }
-
-  .hero .hero-video-overlay {
-    background:
-      linear-gradient(90deg, rgba(6,16,31,.58) 0%, rgba(6,16,31,.18) 9%, transparent 20%),
-      linear-gradient(180deg, rgba(6,16,31,.08) 0%, transparent 14%, transparent 86%, rgba(6,16,31,.16) 100%),
-      radial-gradient(circle at 64% 50%, rgba(0,207,244,.055), transparent 62%);
-  }
-}
-/* === FIM V12 HOME DESKTOP === */'''
-          p.write_text(s + block + '\n', encoding='utf-8')
-          Path('VERSION.txt').write_text('Zelunexa Site Oficial v12 — vídeo principal ampliado no desktop\n', encoding='utf-8')
+          s = re.sub(re.escape(start) + r'.*?' + re.escape(end), '', s, flags=re.S).rstrip()
+          lines = [
+              '', '', start,
+              '@media (min-width: 1051px) {',
+              '  .hero .hero-grid {',
+              '    grid-template-columns: minmax(0, .86fr) minmax(0, 1.14fr);',
+              '    gap: clamp(30px, 2.4vw, 46px);',
+              '  }',
+              '',
+              '  .hero .hero-visual--motion {',
+              '    width: calc(100% + clamp(210px, 14vw, 280px));',
+              '    min-height: clamp(560px, 41vw, 640px);',
+              '    margin-right: calc(clamp(210px, 14vw, 280px) * -1);',
+              '    overflow: hidden;',
+              '    display: flex;',
+              '    align-items: center;',
+              '    justify-content: flex-end;',
+              '  }',
+              '',
+              '  .hero .hero-video-shell {',
+              '    width: 100%;',
+              '    height: 100%;',
+              '    min-height: inherit;',
+              '    aspect-ratio: auto;',
+              '    overflow: hidden;',
+              '    margin: 0;',
+              '    -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,.72) 4%, #000 11%, #000 100%);',
+              '    mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,.72) 4%, #000 11%, #000 100%);',
+              '  }',
+              '',
+              '  .hero .hero-impact-video {',
+              '    width: 100%;',
+              '    height: 100%;',
+              '    min-height: inherit;',
+              '    object-fit: cover;',
+              '    object-position: 78% 50%;',
+              '    transform: scale(1.22);',
+              '    transform-origin: 78% 50%;',
+              '  }',
+              '',
+              '  .hero .hero-video-overlay {',
+              '    background: linear-gradient(90deg, rgba(6,16,31,.54) 0%, rgba(6,16,31,.16) 8%, transparent 19%), linear-gradient(180deg, rgba(6,16,31,.06) 0%, transparent 14%, transparent 86%, rgba(6,16,31,.14) 100%), radial-gradient(circle at 66% 50%, rgba(0,207,244,.05), transparent 64%);',
+              '  }',
+              '}',
+              end,
+          ]
+          p.write_text(s + '\n'.join(lines) + '\n', encoding='utf-8')
+          Path('VERSION.txt').write_text('Zelunexa Site Oficial v12 - video principal ampliado no desktop\n', encoding='utf-8')
           PY
 
-      - name: Commit das correções
+      - name: Commit das correcoes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html monitor.html guia.html sobre.html contato.html area-do-cliente.html privacidade.html termos.html 404.html robots.txt sitemap.xml sitemap.template.xml VERSION.txt assets/css/styles.css
-          git commit -m "Amplia vídeo principal da Home no desktop" || exit 0
+          git commit -m "Amplia video principal da Home no desktop" || exit 0
           git push
