@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-# Inserir a URL absoluta do sitemap após a definição do domínio oficial.
+Sitemap: https://zelunexa.vercel.app/sitemap.xml
