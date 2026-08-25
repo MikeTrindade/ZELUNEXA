@@ -1,0 +1,26 @@
+ESTRUTURA DO PACOTE
+
+Zelunexa_Site_Oficial_v2_Organizado/
+|-- index.html
+|-- monitor.html
+|-- guia.html
+|-- sobre.html
+|-- contato.html
+|-- privacidade.html
+|-- termos.html
+|-- 404.html
+|-- robots.txt
+|-- sitemap.template.xml
+|-- manifest.webmanifest
+|-- favicon.ico
+|-- assets/
+|   |-- css/styles.css
+|   |-- js/main.js
+|   `-- img/
+|-- _previews/
+|   |-- imagens completas para desktop e mobile
+|   `-- slices de validacao visual
+|-- DOCUMENTACAO/
+|   |-- ESTRUTURA_DO_PACOTE.txt
+|   `-- PENDENCIAS_ANTES_DA_PUBLICACAO.txt
+`-- LEIA-ME.txt

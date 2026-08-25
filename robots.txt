@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+# Inserir a URL absoluta do sitemap após a definição do domínio oficial.

@@ -1,0 +1,15 @@
+ZELUNEXA — SITE OFICIAL V5
+
+Abra index.html para visualizar localmente.
+
+ALTERAÇÕES PRINCIPAIS
+- Vídeo de identidade integrado ao Hero da Home, em autoplay silencioso e sem controles.
+- Segundo vídeo mantido na página Sobre, também sem interface de player.
+- Valor monetário exato removido do case público.
+- Novo gráfico circular com 70% de economia operacional.
+
+PUBLICAÇÃO
+O pacote inclui vercel.json, robots.txt, manifest.webmanifest e demais arquivos necessários à publicação estática.
+
+PENDÊNCIAS DE NEGÓCIO
+Consulte DOCUMENTACAO/PENDENCIAS_ANTES_DA_PUBLICACAO.txt antes de conectar domínio definitivo, Portal do Cliente, analytics ou CRM.

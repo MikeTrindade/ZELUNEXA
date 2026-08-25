@@ -1,0 +1,14 @@
+PENDENCIAS PARA A PUBLICACAO DEFINITIVA EM DOMINIO OFICIAL
+
+Estas pendencias NAO impedem um deploy tecnico temporario para validacao na Vercel, salvo quando indicado.
+
+1. Definir/conectar o dominio oficial da Zelunexa e, em seguida, inserir URLs canonicas, og:url, URLs absolutas nos dados estruturados e sitemap.xml definitivo.
+2. Inserir a URL externa oficial do Portal do Cliente em CONFIG.portalUrl, no arquivo assets/js/main.js. Enquanto vazia, os links permanecem ocultos e nao quebram a navegacao.
+3. Confirmar e publicar e-mail institucional e redes sociais oficiais, quando existirem.
+4. Confirmar os dados da pessoa juridica responsavel pelo site para eventual inclusao nos documentos legais e rodape, quando a empresa estiver formalmente definida.
+5. Submeter Aviso de Privacidade e Termos de Uso a revisao juridica final antes de tratar os textos como documentos juridicos definitivos.
+6. Confirmar autorizacao de uso publico do nome, imagens, telas e resultados do case Ibiti Reserva antes de uma campanha publica ampla.
+7. Consolidar as condicoes comerciais oficiais dos planos antes de publicar precos, limites ou vigencias. O site atual deliberadamente nao publica numeros conflitantes.
+8. Definir analytics, pixels, CRM ou outras ferramentas de rastreamento somente quando necessario; ao implantar, reavaliar cookies, consentimento e Aviso de Privacidade.
+9. Se futuramente o formulario passar a enviar dados diretamente para backend/CRM/e-mail, implementar endpoint, protecao antispam, politica de retencao e atualizar o Aviso de Privacidade.
+10. Depois do primeiro deploy real, executar validacao final no dominio publicado: HTTP/HTTPS, headers, 404, links externos, Core Web Vitals/Lighthouse e indexabilidade.
