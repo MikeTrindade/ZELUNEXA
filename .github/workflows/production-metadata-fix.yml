@@ -1,0 +1,112 @@
+name: Ajuste de metadados de produção
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/production-metadata-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix-production-metadata:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ajustar Open Graph, canonical, robots e sitemap
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          BASE = 'https://zelunexa.vercel.app'
+          OG = f'{BASE}/assets/img/og-image.png'
+          LOGO = f'{BASE}/assets/img/zelunexa-logo.svg'
+
+          pages = {
+              'index.html': f'{BASE}/',
+              'monitor.html': f'{BASE}/monitor.html',
+              'guia.html': f'{BASE}/guia.html',
+              'sobre.html': f'{BASE}/sobre.html',
+              'contato.html': f'{BASE}/contato.html',
+              'area-do-cliente.html': f'{BASE}/area-do-cliente.html',
+              'privacidade.html': f'{BASE}/privacidade.html',
+              'termos.html': f'{BASE}/termos.html',
+          }
+
+          all_html = list(pages) + ['404.html']
+          for path in all_html:
+              p = Path(path)
+              if not p.exists():
+                  continue
+              s = p.read_text(encoding='utf-8')
+
+              s = re.sub(r'<meta property="og:image" content="[^"]+">',
+                         f'<meta property="og:image" content="{OG}">', s, count=1)
+              if 'property="og:image:secure_url"' not in s:
+                  s = s.replace(f'<meta property="og:image" content="{OG}">',
+                      f'<meta property="og:image" content="{OG}">\n    <meta property="og:image:secure_url" content="{OG}">\n    <meta property="og:image:type" content="image/png">', 1)
+
+              s = re.sub(r'<meta name="twitter:image" content="[^"]+">',
+                         f'<meta name="twitter:image" content="{OG}">', s, count=1)
+              if 'name="twitter:image:alt"' not in s:
+                  s = s.replace(f'<meta name="twitter:image" content="{OG}">',
+                                f'<meta name="twitter:image" content="{OG}">\n    <meta name="twitter:image:alt" content="Zelunexa — Conectar para zelar.">', 1)
+
+              if path in pages:
+                  url = pages[path]
+                  if 'property="og:url"' not in s:
+                      s = s.replace('<meta property="og:site_name" content="Zelunexa">',
+                                    f'<meta property="og:site_name" content="Zelunexa">\n    <meta property="og:url" content="{url}">', 1)
+                  if 'rel="canonical"' not in s:
+                      m = re.search(r'(<title>.*?</title>)', s, re.S)
+                      if m:
+                          s = s[:m.end()] + f'\n    <link rel="canonical" href="{url}">' + s[m.end():]
+
+              s = s.replace('"logo":"assets/img/og-image.png"', f'"logo":"{LOGO}"')
+
+              if path == 'area-do-cliente.html':
+                  s = s.replace('<a class="portal-link" href="#">Área do Cliente ↗</a>',
+                                '<a class="portal-link" href="area-do-cliente.html" aria-current="page">Área do Cliente ↗</a>')
+                  s = s.replace('<a class="btn btn--secondary" href="#">Área do Cliente ↗</a>',
+                                '<a class="btn btn--secondary" href="area-do-cliente.html" aria-current="page">Área do Cliente ↗</a>')
+                  s = s.replace('src="assets/img/og-image.png" alt="Ecossistema Zelunexa conectando monitoramento, gestão e orientação digital" width="1400" height="900"',
+                                'src="assets/img/og-image.png" alt="Ecossistema Zelunexa conectando monitoramento, gestão e orientação digital" width="1200" height="630"')
+
+              p.write_text(s, encoding='utf-8')
+
+          Path('robots.txt').write_text(
+              'User-agent: *\nAllow: /\n\nSitemap: https://zelunexa.vercel.app/sitemap.xml\n',
+              encoding='utf-8'
+          )
+
+          urls = [
+              ('https://zelunexa.vercel.app/', '1.0'),
+              ('https://zelunexa.vercel.app/monitor.html', '0.9'),
+              ('https://zelunexa.vercel.app/guia.html', '0.9'),
+              ('https://zelunexa.vercel.app/sobre.html', '0.7'),
+              ('https://zelunexa.vercel.app/contato.html', '0.8'),
+              ('https://zelunexa.vercel.app/area-do-cliente.html', '0.5'),
+              ('https://zelunexa.vercel.app/privacidade.html', '0.3'),
+              ('https://zelunexa.vercel.app/termos.html', '0.3'),
+          ]
+          xml = ['<?xml version="1.0" encoding="UTF-8"?>',
+                 '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+          for url, priority in urls:
+              xml += ['  <url>', f'    <loc>{url}</loc>', '    <changefreq>monthly</changefreq>', f'    <priority>{priority}</priority>', '  </url>']
+          xml.append('</urlset>')
+          Path('sitemap.xml').write_text('\n'.join(xml) + '\n', encoding='utf-8')
+          PY
+
+      - name: Commit das correções
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html monitor.html guia.html sobre.html contato.html area-do-cliente.html privacidade.html termos.html 404.html robots.txt sitemap.xml
+          git commit -m "Corrige prévia social e SEO de produção" || exit 0
+          git push
