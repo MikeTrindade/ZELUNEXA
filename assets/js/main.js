@@ -2,10 +2,20 @@
   'use strict';
 
   const CONFIG = Object.freeze({
-    portalUrl: 'area-do-cliente.html', // Área do Cliente habilitada nesta versão.
-    whatsappPrimary: '5511941273272', // Mike Trindade
-    whatsappSecondary: '5515981544882', // Bruno Genari
+    portalUrl: 'area-do-cliente.html',
+    whatsappPrimary: '5511941273272',
+    whatsappSecondary: '5515981544882',
   });
+
+  const ATTRIBUTION_KEYS = Object.freeze([
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_content',
+    'utm_term',
+    'gclid',
+    'fbclid',
+  ]);
 
   const doc = document;
   const body = doc.body;
@@ -19,6 +29,63 @@
   const encodeMessage = (message) => encodeURIComponent(message.trim());
   const whatsappUrl = (phone, message) => `https://wa.me/${phone}?text=${encodeMessage(message)}`;
 
+  function safeStorageGet(key) {
+    try {
+      return window.sessionStorage.getItem(key) || window.localStorage.getItem(key) || '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function safeStorageSet(key, value) {
+    try {
+      window.sessionStorage.setItem(key, value);
+      window.localStorage.setItem(key, value);
+    } catch (_) {}
+  }
+
+  function captureAttribution() {
+    const params = new URLSearchParams(window.location.search);
+    const data = {};
+
+    ATTRIBUTION_KEYS.forEach((key) => {
+      const incoming = String(params.get(key) || '').trim();
+      if (incoming) safeStorageSet(`zelunexa_${key}`, incoming);
+      const stored = incoming || safeStorageGet(`zelunexa_${key}`);
+      if (stored) data[key] = stored;
+    });
+
+    if (!safeStorageGet('zelunexa_landing_page')) {
+      safeStorageSet('zelunexa_landing_page', `${window.location.pathname}${window.location.search}`);
+    }
+    if (!safeStorageGet('zelunexa_first_referrer') && doc.referrer) {
+      safeStorageSet('zelunexa_first_referrer', doc.referrer);
+    }
+
+    data.landing_page = safeStorageGet('zelunexa_landing_page');
+    data.first_referrer = safeStorageGet('zelunexa_first_referrer');
+    return data;
+  }
+
+  const attribution = captureAttribution();
+
+  function trackEvent(name, properties = {}) {
+    const payload = {
+      ...properties,
+      page_path: window.location.pathname,
+      ...Object.fromEntries(
+        Object.entries(attribution).filter(([key]) => key.startsWith('utm_'))
+      ),
+    };
+
+    if (typeof window.va === 'function') {
+      try { window.va('event', { name, data: payload }); } catch (_) {}
+    }
+
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ event: name, ...payload });
+    window.dispatchEvent(new CustomEvent('zelunexa:analytics', { detail: { name, properties: payload } }));
+  }
 
   function closeMenu({ returnFocus = false } = {}) {
     if (!menuButton || !mobilePanel) return;
@@ -61,7 +128,6 @@
     closeMenu();
   });
 
-  // Keep keyboard focus inside the open mobile navigation.
   doc.addEventListener('keydown', (event) => {
     if (event.key !== 'Tab' || !mobilePanel?.classList.contains('open')) return;
     const focusable = [menuButton, ...mobilePanel.querySelectorAll('a, button:not([disabled])')].filter(Boolean);
@@ -89,7 +155,6 @@
     element.textContent = String(new Date().getFullYear());
   });
 
-  // Portal links are hidden until the official URL is configured, avoiding a dead public CTA.
   doc.querySelectorAll('[data-portal-link]').forEach((link) => {
     if (!CONFIG.portalUrl) {
       link.hidden = true;
@@ -99,9 +164,9 @@
     link.href = CONFIG.portalUrl;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
+    link.addEventListener('click', () => trackEvent('area_cliente_click'));
   });
 
-  // Contextual WhatsApp links.
   doc.querySelectorAll('[data-wa-link]').forEach((link) => {
     const recipient = link.dataset.waRecipient === 'secondary'
       ? CONFIG.whatsappSecondary
@@ -110,12 +175,33 @@
     link.href = whatsappUrl(recipient, message);
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
+    link.addEventListener('click', () => {
+      trackEvent('whatsapp_click', {
+        recipient: link.dataset.waRecipient === 'secondary' ? 'bruno' : 'mike',
+        link_text: String(link.textContent || '').trim().slice(0, 80),
+      });
+    });
+  });
+
+  doc.querySelectorAll('a[href*="contato.html"]').forEach((link) => {
+    link.addEventListener('click', () => {
+      trackEvent('contato_cta_click', {
+        link_text: String(link.textContent || '').trim().slice(0, 80),
+      });
+    });
+  });
+
+  doc.querySelectorAll('a[href*="monitor.html"]').forEach((link) => {
+    link.addEventListener('click', () => trackEvent('monitor_cta_click'));
+  });
+
+  doc.querySelectorAll('a[href*="guia.html"]').forEach((link) => {
+    link.addEventListener('click', () => trackEvent('guia_cta_click'));
   });
 
   const form = doc.querySelector('#lead-form');
   const formStatus = doc.querySelector('#form-status');
 
-  // Preserve CTA context when a visitor comes from a product page.
   if (form) {
     const interestSelect = form.querySelector('select[name="interesse"]');
     const interestParam = new URLSearchParams(window.location.search).get('interesse');
@@ -134,7 +220,6 @@
     if (!form.reportValidity()) return;
 
     const data = new FormData(form);
-
     const name = String(data.get('nome') || '').trim();
     const company = String(data.get('empresa') || '').trim();
     const phone = String(data.get('telefone') || '').trim();
@@ -142,6 +227,11 @@
     const interest = String(data.get('interesse') || '').trim();
     const message = String(data.get('mensagem') || '').trim();
     const source = form.dataset.source || 'site institucional';
+
+    const campaignSummary = ATTRIBUTION_KEYS
+      .map((key) => attribution[key] ? `${key}: ${attribution[key]}` : '')
+      .filter(Boolean)
+      .join(' | ');
 
     const text = [
       'Olá, conheci a Zelunexa pelo site e gostaria de solicitar uma apresentação.',
@@ -153,7 +243,14 @@
       `Interesse: ${interest}`,
       message ? `Necessidade: ${message}` : '',
       `Origem: ${source}`,
+      campaignSummary ? `Campanha: ${campaignSummary}` : '',
     ].filter(Boolean).join('\n');
+
+    trackEvent('lead_form_submit', {
+      interest,
+      source,
+      has_message: Boolean(message),
+    });
 
     if (formStatus) {
       formStatus.textContent = 'Abrindo o WhatsApp com sua solicitação preenchida. Revise a mensagem e envie para concluir.';
@@ -165,7 +262,6 @@
     if (!opened) window.location.href = url;
   });
 
-  // Content is visible by default. Animation is only applied when JS is active.
   const revealItems = [...doc.querySelectorAll('.reveal')];
   if (reduceMotion.matches || !('IntersectionObserver' in window)) {
     revealItems.forEach((item) => item.classList.add('visible'));
@@ -182,8 +278,6 @@
     revealItems.forEach((item) => observer.observe(item));
   }
 
-
-  // Below-fold brand motion loads only when needed; it remains a visual element, not a player UI.
   const motionVideos = [...doc.querySelectorAll('[data-autoplay-video]')];
   const saveData = Boolean(navigator.connection && navigator.connection.saveData);
 
@@ -211,23 +305,23 @@
     motionVideos.forEach((video) => videoObserver.observe(video));
   }
 
-  // The first-impact hero video is intentionally silent, automatic and control-free.
   const heroImpactVideo = doc.querySelector('.hero-impact-video');
   if (heroImpactVideo) {
-    if (reduceMotion.matches) {
+    if (reduceMotion.matches || saveData) {
       heroImpactVideo.pause();
+      heroImpactVideo.removeAttribute('autoplay');
+      heroImpactVideo.preload = 'metadata';
     } else {
       heroImpactVideo.muted = true;
       heroImpactVideo.play().catch(() => {});
     }
     doc.addEventListener('visibilitychange', () => {
-      if (reduceMotion.matches) return;
+      if (reduceMotion.matches || saveData) return;
       if (doc.hidden) heroImpactVideo.pause();
       else heroImpactVideo.play().catch(() => {});
     });
   }
 
-  // Subtle depth on the home hero; disabled for touch and reduced motion.
   const heroVisual = doc.querySelector('[data-hero-tilt]');
   const finePointer = window.matchMedia('(pointer: fine)').matches;
 
