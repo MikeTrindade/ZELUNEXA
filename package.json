@@ -1,0 +1,12 @@
+{
+  "name": "zelunexa-site-quality",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test:responsive": "node tests/responsive-smoke.mjs",
+    "audit:site": "python3 scripts/site-audit.py"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}
