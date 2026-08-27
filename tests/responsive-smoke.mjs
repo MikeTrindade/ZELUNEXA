@@ -19,9 +19,27 @@ for (const viewport of viewports) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
 
+  await page.route('**/*', async (route) => {
+    const type = route.request().resourceType();
+    const url = route.request().url();
+    if (type === 'media' || type === 'font' || url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com')) {
+      await route.abort();
+      return;
+    }
+    await route.continue();
+  });
+
   for (const path of pages) {
     const url = new URL(path, baseURL).href;
-    const response = await page.goto(url, { waitUntil: 'networkidle' });
+    let response;
+    try {
+      response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      await page.waitForTimeout(500);
+    } catch (error) {
+      failures.push(`${viewport.name} ${path}: falha ao carregar (${error.message})`);
+      continue;
+    }
+
     if (!response || !response.ok()) {
       failures.push(`${viewport.name} ${path}: HTTP ${response?.status() ?? 'sem resposta'}`);
       continue;
