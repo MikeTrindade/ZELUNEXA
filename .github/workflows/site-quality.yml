@@ -1,0 +1,53 @@
+name: Qualidade do site
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Auditoria estrutural
+        run: python3 scripts/site-audit.py
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Instalar Chromium para testes
+        run: npx playwright install --with-deps chromium
+
+      - name: Iniciar servidor local
+        run: |
+          python3 -m http.server 4173 > /tmp/zelunexa-server.log 2>&1 &
+          echo $! > /tmp/zelunexa-server.pid
+          sleep 2
+
+      - name: Testar responsividade
+        env:
+          SITE_URL: http://127.0.0.1:4173
+        run: npm run test:responsive
+
+      - name: Instalar Lighthouse CI
+        run: npm install --global @lhci/cli@0.15.1
+
+      - name: Executar Lighthouse CI
+        run: lhci autorun --config=./lighthouserc.json
