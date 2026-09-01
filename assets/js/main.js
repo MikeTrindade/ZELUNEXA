@@ -24,6 +24,46 @@
   const mobilePanel = doc.querySelector('.mobile-panel');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
+  // Correção isolada para os cards de etapas na Home em telas pequenas.
+  // Não altera a versão desktop nem outros componentes do site.
+  const mobileStepStyle = doc.createElement('style');
+  mobileStepStyle.id = 'zelunexa-mobile-step-fix';
+  mobileStepStyle.textContent = `
+    @media (max-width: 640px) {
+      .step-card {
+        min-height: 0 !important;
+        padding: 24px !important;
+      }
+
+      .step-card .step-number {
+        position: static !important;
+        width: 52px;
+        height: 36px;
+        display: inline-grid;
+        place-items: center;
+        margin: 0 0 18px !important;
+        color: #075fd3 !important;
+        background: rgba(0, 119, 255, 0.08);
+        border: 1px solid rgba(0, 119, 255, 0.14);
+        border-radius: 11px;
+        font-family: Sora, Inter, sans-serif;
+        font-size: 15px !important;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .step-card h3 {
+        margin-top: 0 !important;
+        margin-bottom: 10px !important;
+      }
+
+      .step-card p {
+        margin-bottom: 0;
+      }
+    }
+  `;
+  doc.head.appendChild(mobileStepStyle);
+
   mobilePanel?.setAttribute('aria-hidden', 'true');
 
   const encodeMessage = (message) => encodeURIComponent(message.trim());
