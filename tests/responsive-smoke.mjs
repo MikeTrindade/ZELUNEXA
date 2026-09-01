@@ -63,11 +63,31 @@ for (const viewport of viewports) {
           left: Math.round(el.getBoundingClientRect().left),
           right: Math.round(el.getBoundingClientRect().right),
         }));
-      return { overflow, badFixed };
+
+      const stepOverlaps = [];
+      if (window.innerWidth <= 640) {
+        document.querySelectorAll('.step-card').forEach((card, index) => {
+          const number = card.querySelector('.step-number');
+          const title = card.querySelector('h3');
+          if (!number || !title) return;
+          const a = number.getBoundingClientRect();
+          const b = title.getBoundingClientRect();
+          const overlap = !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+          if (overlap) {
+            stepOverlaps.push({ index: index + 1, number: { top: a.top, bottom: a.bottom }, title: { top: b.top, bottom: b.bottom } });
+          }
+        });
+      }
+
+      return { overflow, badFixed, stepOverlaps };
     });
 
     if (result.overflow > 4) {
       failures.push(`${viewport.name} ${path}: overflow horizontal de ${Math.round(result.overflow)}px. Elementos: ${JSON.stringify(result.badFixed)}`);
+    }
+
+    if (result.stepOverlaps.length) {
+      failures.push(`${viewport.name} ${path}: números dos cards sobrepondo títulos. ${JSON.stringify(result.stepOverlaps)}`);
     }
   }
 
@@ -82,4 +102,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('OK: páginas validadas em 7 larguras sem overflow horizontal relevante.');
+console.log('OK: páginas validadas em 7 larguras sem overflow horizontal relevante e sem sobreposição nos cards de etapas.');
